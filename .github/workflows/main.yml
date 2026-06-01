@@ -15,8 +15,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar graphviz
-          pip install --upgrade pip setuptools "Cython<3.0.0" buildozer
+          sudo apt-get install -y openjdk-17-jdk build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev tar graphviz autoconf libtool pkg-config
+          pip install --upgrade pip setuptools wheel
+          pip install "Cython<3.0.0" buildozer Kivy==2.3.0
+
+      - name: Accept Android Licenses Automatically
+        run: |
+          mkdir -p ~/.android
+          touch ~/.android/repositories.cfg
+          # Android litsenziyalarini avtomat qabul qilish buyrug'i
+          yes | buildozer android licenses
 
       - name: Build with Buildozer
         run: |
