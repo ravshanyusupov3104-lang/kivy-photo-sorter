@@ -1,0 +1,128 @@
+%%writefile main.py
+import os
+import shutil
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.camera import Camera
+from kivy.uix.image import Image
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.utils import platform
+
+# Kerakli papkalarni yaratish
+FOLDERS = ['papka_A', 'papka_B', 'papka_C', 'kamera_rasmlari']
+for folder in FOLDERS:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+class SmartCameraSorter(BoxLayout):
+    def __init__(self, **kwargs):
+        super(SmartCameraSorter, self).__init__(**kwargs)
+        self.orientation = 'vertical'
+        self.spacing = 10
+        self.padding = 10
+
+        self.photo_dir = 'kamera_rasmlari'
+        self.image_list = [os.path.join(self.photo_dir, f) for f in os.listdir(self.photo_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
+        self.current_index = 0
+
+        # Jonli kamera ko'rinishi
+        self.camera = Camera(play=True, resolution=(640, 480), size_hint_y=0.4)
+        self.add_widget(self.camera)
+
+        # Rasmga olish tugmasi
+        self.capture_btn = Button(text="Rasmga Olish (Capture)", size_hint_y=0.08, background_color=(0, 0.7, 0.9, 1))
+        self.capture_btn.bind(on_press=self.capture_photo)
+        self.add_widget(self.capture_btn)
+
+        # Saralanayotgan rasm joyi
+        self.image_widget = Image(source='', size_hint_y=0.35)
+        self.update_image_display()
+        self.add_widget(self.image_widget)
+
+        # Ma'lumot paneli
+        self.status_label = Label(text="Papkalarga saralash: O'ngga (A), Tepaga (B), Chapga (C)", size_hint_y=0.07)
+        self.add_widget(self.status_label)
+
+        # Tugmalar paneli
+        btn_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1, spacing=5)
+        btn_A = Button(text="A Papka", background_color=(0.2, 0.6, 1, 1))
+        btn_A.bind(on_press=lambda x: self.move_photo('papka_A'))
+        btn_B = Button(text="B Papka", background_color=(0.2, 0.8, 0.2, 1))
+        btn_B.bind(on_press=lambda x: self.move_photo('papka_B'))
+        btn_C = Button(text="C Papka", background_color=(1, 0.4, 0.4, 1))
+        btn_C.bind(on_press=lambda x: self.move_photo('papka_C'))
+
+        btn_layout.add_widget(btn_A)
+        btn_layout.add_widget(btn_B)
+        btn_layout.add_widget(btn_C)
+        self.add_widget(btn_layout)
+
+        self.touch_start_x = 0
+        self.touch_start_y = 0
+
+    def capture_photo(self, instance):
+        from datetime import datetime
+        filename = f"IMG_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        filepath = os.path.join(self.photo_dir, filename)
+        self.camera.export_to_png(filepath)
+        if filepath not in self.image_list:
+            self.image_list.append(filepath)
+        self.current_index = len(self.image_list) - 1
+        self.update_image_display()
+
+    def update_image_display(self):
+        if self.image_list and self.current_index < len(self.image_list):
+            self.image_widget.source = self.image_list[self.current_index]
+            self.image_widget.reload()
+        else:
+            self.image_widget.source = ''
+            self.status_label.text = "Rasm yo'q. Rasmga oling!"
+
+    def on_touch_down(self, touch):
+        if self.image_widget.collide_point(*touch.pos):
+            self.touch_start_x = touch.x
+            self.touch_start_y = touch.y
+            return True
+        return super(SmartCameraSorter, self).on_touch_down(touch)
+
+    def on_touch_up(self, touch):
+        if self.image_widget.collide_point(*touch.pos) and self.touch_start_x != 0:
+            dx = touch.x - self.touch_start_x
+            dy = touch.y - self.touch_start_y
+            min_distance = 40 
+
+            if abs(dx) > abs(dy):
+                if dx > min_distance: self.move_photo('papka_A')
+                elif dx < -min_distance: self.move_photo('papka_C')
+            else:
+                if dy > min_distance: self.move_photo('papka_B')
+                    
+            self.touch_start_x = 0
+            self.touch_start_y = 0
+            return True
+        return super(SmartCameraSorter, self).on_touch_up(touch)
+
+    def move_photo(self, target_folder):
+        if not self.image_list or self.current_index >= len(self.image_list):
+            return
+        current_photo_path = self.image_list[self.current_index]
+        filename = os.path.basename(current_photo_path)
+        try:
+            shutil.move(current_photo_path, os.path.join(target_folder, filename))
+            self.image_list.pop(self.current_index)
+            if self.current_index >= len(self.image_list):
+                self.current_index = max(0, len(self.image_list) - 1)
+            self.update_image_display()
+            self.status_label.text = f"Rasm {target_folder}ga o'tdi!"
+        except Exception as e:
+            self.status_label.text = "Xatolik yuz berdi."
+
+class CameraSorterApp(App):
+    def build(self): return SmartCameraSorter()
+
+if __name__ == '__main__':
+    if platform == 'android':
+        from android.permissions import request_permissions, Permission
+        request_permissions([Permission.CAMERA, Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
+    CameraSorterApp().run()
