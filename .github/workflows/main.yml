@@ -19,19 +19,10 @@ jobs:
           pip install --upgrade pip setuptools wheel
           pip install "Cython<3.0.0" buildozer Kivy==2.3.0
 
-      - name: Accept Android Licenses Automatically
-        run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          # Android litsenziyalarini avtomat qabul qilish buyrug'i
-          yes | buildozer android licenses
-
       - name: Build with Buildozer
+        env:
+          # Litsenziyalarni avtomatik qabul qilish uchun muhit sozlamasi
+          APP_ANDROID_ACCEPT_SDK_LICENSE: "1"
         run: |
-          YES=1 buildozer -v android debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: PhotoSorter-APK
-          path: bin/*.apk
+          # Bu yerda YES=1 va --auto-accept-licenses buyrug'i robotni litsenziyadan xatosiz o'tkazadi
+          YES=1 buildozer -v android debug --auto-accept-licenses
